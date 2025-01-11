@@ -396,7 +396,13 @@ def main():
     application.add_handler(CommandHandler("breaktime", send_break_message))
     application.add_handler(CommandHandler("whatsnow", send_current_period))
 
-    application.run_polling(port=8080)
+    # Use webhook to run on port 8080
+    application.run_webhook(
+        listen="0.0.0.0",
+        port=8080,
+        url_path=token,
+        webhook_url=f"https://csbs-schedule-bot.onrender.com/{token}"
+    )
 
 
 if __name__ == "__main__":
