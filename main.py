@@ -11,7 +11,6 @@ logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO
 )
 
-# Sample Timetable with Breaks (unchanged)
 timetable = {
     "Saturday": [
         {
@@ -244,7 +243,7 @@ timetable = {
 
 
 async def send_timetable(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    today = datetime.now().strftime("%A")  # Use current date
+    today = datetime.now().strftime("%A")
     logging.info(f"Sending timetable for {today}")
 
     if today in timetable:
@@ -260,7 +259,6 @@ async def send_timetable(update: Update, context: ContextTypes.DEFAULT_TYPE):
             start_time = datetime.strptime(period["time"], "%H:%M")
             end_time = start_time + timedelta(minutes=period["duration"])
 
-            # Format times to 12-hour format with AM/PM
             formatted_start_time = start_time.strftime("%I:%M %p")
             formatted_end_time = end_time.strftime("%I:%M %p")
 
@@ -286,25 +284,22 @@ async def send_timetable(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def send_break_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    today = datetime.now().strftime("%A")  # Get today's day
+    today = datetime.now().strftime("%A")
     logging.info(f"Checking break status for {today}")
 
-    # Check if there are no classes on this day
     if today in timetable:
         for period in timetable[today]:
             if "msg" in period:
                 await update.message.reply_text(period["msg"])
                 return
 
-    # Check if the timetable has entries for today
     if today not in timetable:
         await update.message.reply_text(f"No timetable available for {today}.")
         return
 
-    current_time = datetime.now().time()  # Get the current time
+    current_time = datetime.now().time()
     ongoing_break = False
 
-    # Loop through the periods for today
     for period in timetable[today]:
         if period["subject"] == "Break":
             break_time = datetime.strptime(period["time"], "%H:%M").time()
@@ -313,54 +308,51 @@ async def send_break_message(update: Update, context: ContextTypes.DEFAULT_TYPE)
                 + timedelta(minutes=period["duration"])
             ).time()
 
-            # Check if current time is within the break period
             if break_time <= current_time < break_end_time:
                 ongoing_break = True
                 await update.message.reply_text(
                     f"<b>Break Time!</b> 😋\n<code>---------------</code>\nYou have a {period['duration']} minute break.",
                     parse_mode="HTML",
                 )
-                return  # Exit early since we are in a break
+                return
 
-    # If no ongoing break is found
     if not ongoing_break:
         await update.message.reply_text("No breaks currently. Stay focused!")
 
 
 async def send_current_period(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    today = datetime.now().strftime("%A")  # Get the current day
+    today = datetime.now().strftime("%A")
     logging.info(f"Checking current period for {today}")
 
-    # Check if the timetable exists for today
     if today not in timetable:
         await update.message.reply_text(f"No timetable available for {today}.")
         return
 
-    current_time = datetime.now()  # Current date and time
-    cutoff_start_time = datetime.strptime("09:30", "%H:%M").time()  # Before 9:30 AM
-    cutoff_end_time = datetime.strptime("16:30", "%H:%M").time()  # After 4:30 PM
+    for period in timetable[today]:
+        if "msg" in period:
+            await update.message.reply_text(period["msg"])
+            return
 
-    # Check if current time is before 9:30 AM
+    current_time = datetime.now()
+    cutoff_start_time = datetime.strptime("09:30", "%H:%M").time()
+    cutoff_end_time = datetime.strptime("16:30", "%H:%M").time()
+
     if current_time.time() < cutoff_start_time:
         await update.message.reply_text("Let the class start! 📚")
         return
 
-    # Check if current time is after 4:30 PM
     if current_time.time() >= cutoff_end_time:
         await update.message.reply_text("Classes are over! Enjoy your evening! 🌆")
         return
 
     for period in timetable[today]:
-        # Parse period start time and calculate end time
         period_start = datetime.strptime(period["time"], "%H:%M").replace(
             year=current_time.year, month=current_time.month, day=current_time.day
         )
         period_end = period_start + timedelta(minutes=period["duration"])
 
-        # Check if the current time falls within this period
         if period_start <= current_time < period_end:
             if period["subject"] == "Break":
-                # If it's a break, send a specific break message
                 await update.message.reply_text(
                     f"<b>Break Time!</b> 😋\n<code>---------------</code>\nYou have a {period['duration']} minute break.",
                     parse_mode="HTML",
@@ -373,24 +365,23 @@ async def send_current_period(update: Update, context: ContextTypes.DEFAULT_TYPE
                     f"• <b>Time :</b> {period_start.strftime('%I:%M %p')} to {period_end.strftime('%I:%M %p')}\n"
                 )
                 reminder_message += (
-                    # f"• <b>Duration :</b> {period['duration']} minutes\n"
+                    f"• <b>Duration :</b> {period['duration']} minutes\n"
                     f"• <b>Faculty :</b> {period.get('teacher', 'N/A')}\n"
                     f"• <b>Room :</b> {period.get('room', 'N/A')}\n"
                 )
                 await update.message.reply_text(reminder_message, parse_mode="HTML")
             return
 
-    # No periods currently scheduled
     await update.message.reply_text("No period is currently scheduled.")
 
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
-        f"Yo CSBS '27! 👋 All set! I'll keep you updated with your classes, rooms, and breaks. No more missing anything! Let's get this day going! 😎\n\n"
+        f"Yo CSBS '27! 👋 All set? I’ve got your classes, rooms, and breaks under control. No skipping, no excuses. Let’s get this over with! 😎\n\n"
         f"Available commands:\n"
         f"/timetable - View today's timetable\n"
-        f"/break - Check current break status\n"
-        f"/now - View current or upcoming period"
+        f"/breaktime - Check current break status\n"
+        f"/whatsnow - View current period"
     )
 
 
@@ -405,37 +396,8 @@ def main():
     application.add_handler(CommandHandler("breaktime", send_break_message))
     application.add_handler(CommandHandler("whatsnow", send_current_period))
 
-    application.run_polling()
+    application.run_polling(port=8080)
 
 
 if __name__ == "__main__":
     main()
-
-# For demonstration purposes, let's simulate the bot's behavior
-import asyncio
-
-
-class MockUpdate:
-    class Message:
-        async def reply_text(self, text):
-            print(f"Bot: {text}")
-
-    message = Message()
-
-
-class MockContext:
-    args = []
-
-
-async def simulate_bot():
-    print("Simulating bot behavior...")
-
-    update = MockUpdate()
-
-    # Simulating /start command
-    context = MockContext()
-    print("\nSimulating /start command:")
-    await start(update, context)
-
-
-asyncio.run(simulate_bot())
