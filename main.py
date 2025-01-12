@@ -377,11 +377,12 @@ async def send_current_period(update: Update, context: ContextTypes.DEFAULT_TYPE
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
-        f"Yo CSBS '27! 👋 All set? I’ve got your classes, rooms, and breaks under control. No skipping, no excuses. Let’s get this over with! 😎\n\n"
-        f"Available commands:\n"
-        f"/timetable - View today's timetable\n"
-        f"/breaktime - Check current break status\n"
-        f"/whatsnow - View current period"
+        f"Hey CSBS '27, you lost souls! Your personal schedule demon here. Ready to make your life slightly less chaotic?\n\n"
+        f"Commands to keep your clueless self on track:\n"
+        f"/timetable - Your daily doom schedule\n"
+        f"/breaktime - Freedom time or nah?\n"
+        f"/whatsnow - Where your lazy self should be\n\n"
+        f"Now try a command, if you can handle it. 🤠"
     )
 
 
