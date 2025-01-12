@@ -22,12 +22,12 @@ timetable = {
             "msg": "No classes on Saturday",
         }
     ],
-    "Monday": [
+    "Sunday": [
         {
             "msg": "No classes on Sunday",
         }
     ],
-    "Sunday": [
+    "Monday": [
         {  # 1st & 2nd Hour
             "subject": "DBMS",
             "time": "09:30",
