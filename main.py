@@ -1,14 +1,15 @@
 import logging
 import os
-from telegram import Update
-from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes
 from datetime import datetime, timedelta
 from dotenv import load_dotenv
+from telegram import Update
+from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes
 
 load_dotenv()
 
 logging.basicConfig(
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", 
+    level=logging.INFO
 )
 
 timetable = {
@@ -17,12 +18,12 @@ timetable = {
             "msg": "No classes on Saturday",
         }
     ],
-    "Sunday": [
+    "Monday": [
         {
             "msg": "No classes on Sunday",
         }
     ],
-    "Monday": [
+    "Sunday": [
         {  # 1st & 2nd Hour
             "subject": "DBMS",
             "time": "09:30",
@@ -241,10 +242,13 @@ timetable = {
     ],
 }
 
-
 async def send_timetable(update: Update, context: ContextTypes.DEFAULT_TYPE):
     today = datetime.now().strftime("%A")
     logging.info(f"Sending timetable for {today}")
+
+    if today not in timetable:
+        await update.message.reply_text(f"No timetable available for {today}.")
+        return
 
     if today in timetable:
         for period in timetable[today]:
@@ -252,7 +256,7 @@ async def send_timetable(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 await update.message.reply_text(period["msg"])
                 return
 
-        message = f"<b>Here's your timetable for today, {today}! 🙃</b>\n"
+        message = f"<b>It’s {today}. Here’s your damn timetable. Don’t be late!</b>\n"
         message += f"<code>----------------------------</code>\n\n"
 
         for period in timetable[today]:
@@ -276,12 +280,11 @@ async def send_timetable(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 )
 
         message += f"<code>----------------------------</code>\n"
-        message += "<b>That's your schedule! 😎 Have a great day! ✨</b>"
+        message += "<b>That’s it. Now go, and don’t screw it up!</b>"
 
         await update.message.reply_text(message, parse_mode="HTML")
     else:
         await update.message.reply_text(f"No timetable available for {today}.")
-
 
 async def send_break_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     today = datetime.now().strftime("%A")
@@ -319,7 +322,6 @@ async def send_break_message(update: Update, context: ContextTypes.DEFAULT_TYPE)
     if not ongoing_break:
         await update.message.reply_text("No breaks currently. Stay focused!")
 
-
 async def send_current_period(update: Update, context: ContextTypes.DEFAULT_TYPE):
     today = datetime.now().strftime("%A")
     logging.info(f"Checking current period for {today}")
@@ -338,11 +340,11 @@ async def send_current_period(update: Update, context: ContextTypes.DEFAULT_TYPE
     cutoff_end_time = datetime.strptime("16:30", "%H:%M").time()
 
     if current_time.time() < cutoff_start_time:
-        await update.message.reply_text("Let the class start! 📚")
+        await update.message.reply_text("Hold up! Class hasn't started yet! 📚")
         return
 
     if current_time.time() >= cutoff_end_time:
-        await update.message.reply_text("Classes are over! Enjoy your evening! 🌆")
+        await update.message.reply_text("Classes are over, now get lost! See you tomorrow!")
         return
 
     for period in timetable[today]:
@@ -374,20 +376,20 @@ async def send_current_period(update: Update, context: ContextTypes.DEFAULT_TYPE
 
     await update.message.reply_text("No period is currently scheduled.")
 
-
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
-        f"Hey CSBS '27, you lost souls! Your personal schedule demon here. Ready to make your life slightly less chaotic?\n\n"
+        f"<b>Hey CSBS '27,</b> you lost souls! Your personal schedule demon here. Ready to make your life slightly less chaotic?\n\n"
         f"Commands to keep your clueless self on track:\n"
         f"/timetable - Your daily doom schedule\n"
         f"/breaktime - Freedom time or nah?\n"
         f"/whatsnow - Where your lazy self should be\n\n"
-        f"Now try a command, if you can handle it. 🤠"
+        f"Now try a command, if you can handle it. 🤠",
+        parse_mode="HTML",
     )
-
 
 def main():
     token = os.getenv("TELEGRAM_TOKEN")
+
     if not token:
         raise ValueError("No TELEGRAM_TOKEN found in environment variables")
 
@@ -397,7 +399,6 @@ def main():
     application.add_handler(CommandHandler("breaktime", send_break_message))
     application.add_handler(CommandHandler("whatsnow", send_current_period))
 
-    # Use webhook to run on port 8080
     application.run_webhook(
         listen="0.0.0.0",
         port=8080,
@@ -405,6 +406,7 @@ def main():
         webhook_url=f"https://csbs-schedule-bot.onrender.com/{token}"
     )
 
+    # application.run_polling()
 
 if __name__ == "__main__":
     main()
