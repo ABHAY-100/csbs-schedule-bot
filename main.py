@@ -376,13 +376,20 @@ async def send_current_period(update: Update, context: ContextTypes.DEFAULT_TYPE
 
     await update.message.reply_text("No period is currently scheduled.")
 
+async def send_help_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text(
+        f"Better Ask Abhay",
+        parse_mode="HTML"
+    )
+
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
         f"<b>Hey CSBS '27,</b> you lost souls! Your personal schedule demon here. Ready to make your life slightly less chaotic?\n\n"
         f"Commands to keep your clueless self on track:\n"
         f"/timetable - Your daily doom schedule\n"
         f"/breaktime - Freedom time or nah?\n"
-        f"/whatsnow - Where your lazy self should be\n\n"
+        f"/whatsnow - Where your lazy self should be\n"
+        f"/help - Lost? Just ask me!\n\n"
         f"Now try a command, if you can handle it. 🤠",
         parse_mode="HTML",
     )
@@ -398,6 +405,7 @@ def main():
     application.add_handler(CommandHandler("timetable", send_timetable))
     application.add_handler(CommandHandler("breaktime", send_break_message))
     application.add_handler(CommandHandler("whatsnow", send_current_period))
+    application.add_handler(CommandHandler("help", send_help_message))
 
     application.run_webhook(
         listen="0.0.0.0",
