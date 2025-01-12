@@ -1,9 +1,11 @@
+from flask import Flask
 import logging
 import os
 from datetime import datetime, timedelta
 from dotenv import load_dotenv
 from telegram import Update
 from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes
+import subprocess
 
 load_dotenv()
 
@@ -11,6 +13,8 @@ logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", 
     level=logging.INFO
 )
+
+app = Flask(__name__)
 
 timetable = {
     "Saturday": [
@@ -242,6 +246,10 @@ timetable = {
     ],
 }
 
+@app.route('/health', methods=['GET'])
+def health_check():
+    return "Server is alive!", 200
+
 async def send_timetable(update: Update, context: ContextTypes.DEFAULT_TYPE):
     today = datetime.now().strftime("%A")
     logging.info(f"Sending timetable for {today}")
@@ -407,14 +415,14 @@ def main():
     application.add_handler(CommandHandler("whatsnow", send_current_period))
     application.add_handler(CommandHandler("help", send_help_message))
 
-    application.run_webhook(
-        listen="0.0.0.0",
-        port=8080,
-        url_path=token,
-        webhook_url=f"https://csbs-schedule-bot.onrender.com/{token}"
-    )
+    from threading import Thread
 
-    # application.run_polling()
+    def run_flask():
+        app.run(host='0.0.0.0', port=8080)
+
+    Thread(target=run_flask).start()
+    
+    application.run_polling()
 
 if __name__ == "__main__":
     main()
