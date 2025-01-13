@@ -311,14 +311,15 @@ async def send_break_message(update: Update, context: ContextTypes.DEFAULT_TYPE)
     current_time = datetime.now().time()
     ongoing_break = False
 
+    current_time_check = datetime.now()
     cutoff_start_time = datetime.strptime("09:30", "%H:%M").time()
     cutoff_end_time = datetime.strptime("16:30", "%H:%M").time()
 
-    if current_time.time() < cutoff_start_time:
+    if current_time_check.time() < cutoff_start_time:
         await update.message.reply_text("Hold up! Class hasn't started yet! 📚")
         return
 
-    if current_time.time() >= cutoff_end_time:
+    if current_time_check.time() >= cutoff_end_time:
         await update.message.reply_text("Classes are over, now get lost! See you tomorrow!")
         return
 
