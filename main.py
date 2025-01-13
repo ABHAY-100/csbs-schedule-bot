@@ -355,36 +355,39 @@ async def send_timetable(update: Update, context: ContextTypes.DEFAULT_TYPE):
     else:
         await update.message.reply_text(f"No timetable available for {today}.")
 
-async def send_break_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def send_break_message_force(update: Update, context: ContextTypes.DEFAULT_TYPE):
     today = datetime.now().strftime("%A")
     logging.info(f"Checking break status for {today}")
 
-    if today in timetable:
-        for period in timetable[today]:
-            if "msg" in period:
-                await update.message.reply_text(period["msg"])
-                return
-
+    # Check if timetable exists for today
     if today not in timetable:
         await update.message.reply_text(f"No timetable available for {today}.")
         return
 
     current_time = datetime.now().time()
     ongoing_break = False
+    next_break_time = None
 
-    current_time_check = datetime.now()
+    # Define cutoff times
     cutoff_start_time = datetime.strptime("09:30", "%H:%M").time()
     cutoff_end_time = datetime.strptime("16:30", "%H:%M").time()
 
-    if current_time_check.time() < cutoff_start_time:
+    # Check if class has started or ended
+    if current_time < cutoff_start_time:
         await update.message.reply_text("Hold up! Class hasn't started yet! 📚")
         return
 
-    if current_time_check.time() >= cutoff_end_time:
+    if current_time >= cutoff_end_time:
         await update.message.reply_text("Classes are over, now get lost! See you tomorrow!")
         return
 
+    # Iterate through today's timetable to find breaks
     for period in timetable[today]:
+        if "msg" in period:
+            await update.message.reply_text(period["msg"])
+            return
+        
+        # Check for ongoing breaks
         if period["subject"] == "Break":
             break_time = datetime.strptime(period["time"], "%H:%M").time()
             break_end_time = (
@@ -399,9 +402,57 @@ async def send_break_message(update: Update, context: ContextTypes.DEFAULT_TYPE)
                     parse_mode="HTML",
                 )
                 return
+            
+            # If no ongoing break, check for the next break time
+            if not ongoing_break and current_time < break_time:
+                next_break_time = break_time
+                break_duration = period["duration"]
+                break
 
+    # If no ongoing breaks, inform about the next scheduled break
     if not ongoing_break:
-        await update.message.reply_text("No breaks currently. Stay focused!")
+        if next_break_time:
+            await update.message.reply_text(
+                f"No breaks currently. Your next break is at {next_break_time.strftime('%H:%M')} for {break_duration} minutes. Stay focused!"
+            )
+        else:
+            await update.message.reply_text("No breaks currently. Stay focused!")
+
+break_message_sent = {}
+
+async def send_break_message(context: ContextTypes.DEFAULT_TYPE, break_time: str, duration: int):
+    chat_ids = await get_chat_ids()  # Get all user chat IDs
+    message = (
+        f"<b>Break Time!</b> 😋\n<code>---------------</code>\nYou have a {duration} minute break."
+    )
+    for chat_id in chat_ids:
+        await context.bot.send_message(chat_id=chat_id, text=message, parse_mode="HTML")
+
+async def schedule_break_notifications(context: ContextTypes.DEFAULT_TYPE):
+    today = datetime.now().strftime("%A")
+    current_time = datetime.now().time()
+
+    if today not in timetable:
+        return  # No timetable available for today
+
+    for period in timetable[today]:
+        if period["subject"] == "Break":
+            break_time = datetime.strptime(period["time"], "%H:%M").time()
+            break_end_time = (
+                datetime.combine(datetime.today(), break_time)
+                + timedelta(minutes=period["duration"])
+            ).time()
+
+            # Check if it's time to send the break message
+            if current_time >= break_time and current_time < break_end_time:
+                if (today, period["time"]) not in break_message_sent:
+                    await send_break_message(context, period["time"], period["duration"])
+                    break_message_sent[(today, period["time"])] = True  # Mark as sent
+
+            # Reset after the break ends
+            if current_time >= break_end_time:
+                if (today, period["time"]) in break_message_sent:
+                    del break_message_sent[(today, period["time"])]
 
 async def send_current_period(update: Update, context: ContextTypes.DEFAULT_TYPE):
     today = datetime.now().strftime("%A")
@@ -448,7 +499,7 @@ async def send_current_period(update: Update, context: ContextTypes.DEFAULT_TYPE
                     f"• <b>Time :</b> {period_start.strftime('%I:%M %p')} to {period_end.strftime('%I:%M %p')}\n"
                 )
                 reminder_message += (
-                    f"• <b>Duration :</b> {period['duration']} minutes\n"
+                    # f"• <b>Duration :</b> {period['duration']} minutes\n"
                     f"• <b>Faculty :</b> {period.get('teacher', 'N/A')}\n"
                     f"• <b>Room :</b> {period.get('room', 'N/A')}\n"
                 )
@@ -487,7 +538,7 @@ def main():
     application = ApplicationBuilder().token(token).build()
     application.add_handler(CommandHandler("start", start))
     application.add_handler(CommandHandler("timetable", send_timetable))
-    application.add_handler(CommandHandler("breaktime", send_break_message))
+    application.add_handler(CommandHandler("breaktime", send_break_message_force))
     application.add_handler(CommandHandler("whatsnow", send_current_period))
     application.add_handler(CommandHandler("help", send_help_message))
 
@@ -498,6 +549,9 @@ def main():
         next_run_time += timedelta(days=1)
     delay_seconds = (next_run_time - now).total_seconds()
     application.job_queue.run_once(send_timetable_to_all_users, delay_seconds)
+
+    # Check for break time every minute
+    application.job_queue.run_repeating(schedule_break_notifications, interval=60)
 
     from threading import Thread
 
