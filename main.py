@@ -5,9 +5,14 @@ from datetime import datetime, timedelta
 from dotenv import load_dotenv
 from telegram import Update
 from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes
-import subprocess
+from pymongo import MongoClient
 
 load_dotenv()
+
+# MongoDB setup
+mongo_client = MongoClient(os.getenv("MONGODB_URI"))
+db = mongo_client['test-database']
+users_collection = db['test-users']
 
 logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", 
@@ -250,7 +255,24 @@ timetable = {
 def health_check():
     return "Server is alive!", 200
 
+def add_user_info(user):
+    user_data = {
+        "user_id": user.id,
+        "first_name": user.first_name,
+    }
+    
+    if not users_collection.find_one({"user_id": user.id}):
+        users_collection.insert_one(user_data)
+
+async def get_chat_ids():
+    chat_ids = []
+    users = users_collection.find({}, {"user_id": 1})
+    for user in users:
+        chat_ids.append(user["user_id"])
+    return chat_ids
+
 async def send_timetable(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await get_chat_ids()
     today = datetime.now().strftime("%A")
     logging.info(f"Sending timetable for {today}")
 
@@ -403,6 +425,9 @@ async def send_help_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user = update.message.from_user
+    add_user_info(user)
+
     await update.message.reply_text(
         f"<b>Hey CSBS '27,</b> you lost souls! Your personal schedule demon here. Ready to make your life slightly less chaotic?\n\n"
         f"Commands to keep your clueless self on track:\n"
