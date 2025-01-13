@@ -275,7 +275,7 @@ async def get_chat_ids():
 
 async def send_timetable_to_all_users(context: ContextTypes.DEFAULT_TYPE):
     chat_ids = await get_chat_ids()
-    today = india_tz.localize(india_tz.localize(datetime.now())).strftime("%A")
+    today = datetime.now(india_tz).strftime("%A")
     logging.info(f"Sending timetable for {today} to all users")
 
     for period in timetable[today]:
@@ -315,7 +315,7 @@ async def send_timetable_to_all_users(context: ContextTypes.DEFAULT_TYPE):
 
 async def send_timetable(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await get_chat_ids()
-    today = india_tz.localize(datetime.now()).strftime("%A")
+    today = datetime.now(india_tz).strftime("%A")
     logging.info(f"Sending timetable for {today}")
 
     if today not in timetable:
@@ -359,14 +359,14 @@ async def send_timetable(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(f"No timetable available for {today}.")
 
 async def send_break_message_force(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    today = india_tz.localize(datetime.now()).strftime("%A")
+    today = datetime.now(india_tz).strftime("%A")
     logging.info(f"Checking break status for {today}")
 
     if today not in timetable:
         await update.message.reply_text(f"No timetable available for {today}.")
         return
 
-    current_time = india_tz.localize(datetime.now()).time()
+    current_time = datetime.now(india_tz).time()
     ongoing_break = False
     next_break_time = None
 
@@ -425,8 +425,8 @@ async def send_break_message(context: ContextTypes.DEFAULT_TYPE, break_time: str
         await context.bot.send_message(chat_id=chat_id, text=message, parse_mode="HTML")
 
 async def schedule_break_notifications(context: ContextTypes.DEFAULT_TYPE):
-    today = india_tz.localize(datetime.now()).strftime("%A")
-    current_time = india_tz.localize(datetime.now()).time()
+    today = datetime.now(india_tz).strftime("%A")
+    current_time = datetime.now(india_tz).time()
 
     if today not in timetable:
         return  # No timetable available for today
@@ -451,8 +451,8 @@ async def schedule_break_notifications(context: ContextTypes.DEFAULT_TYPE):
                     del break_message_sent[(today, period["time"])]
 
 async def schedule_next_period_notifications(context: ContextTypes.DEFAULT_TYPE):
-    today = india_tz.localize(datetime.now()).strftime("%A")
-    current_time = india_tz.localize(datetime.now())
+    today = datetime.now(india_tz).strftime("%A")
+    current_time = datetime.now(india_tz)
 
     if today not in timetable:
         return
@@ -461,6 +461,7 @@ async def schedule_next_period_notifications(context: ContextTypes.DEFAULT_TYPE)
         period_start = datetime.strptime(period["time"], "%H:%M").replace(
             year=current_time.year, month=current_time.month, day=current_time.day
         )
+        period_start = india_tz.localize(period_start)
         period_end = period_start + timedelta(minutes=period["duration"])
 
         notification_time = period_start - timedelta(minutes=5)
@@ -480,7 +481,7 @@ async def schedule_next_period_notifications(context: ContextTypes.DEFAULT_TYPE)
             break
 
 async def send_current_period(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    today = india_tz.localize(datetime.now()).strftime("%A")
+    today = datetime.now(india_tz).strftime("%A")
     logging.info(f"Checking current period for {today}")
 
     if today not in timetable:
@@ -492,7 +493,7 @@ async def send_current_period(update: Update, context: ContextTypes.DEFAULT_TYPE
             await update.message.reply_text(period["msg"])
             return
 
-    current_time = india_tz.localize(datetime.now())
+    current_time = datetime.now(india_tz)
     cutoff_start_time = datetime.strptime("09:30", "%H:%M").time()
     cutoff_end_time = datetime.strptime("16:30", "%H:%M").time()
 
@@ -506,8 +507,12 @@ async def send_current_period(update: Update, context: ContextTypes.DEFAULT_TYPE
 
     for period in timetable[today]:
         period_start = datetime.strptime(period["time"], "%H:%M").replace(
-            year=current_time.year, month=current_time.month, day=current_time.day
+            year=current_time.year, 
+            month=current_time.month, 
+            day=current_time.day
         )
+
+        period_start = india_tz.localize(period_start)
         period_end = period_start + timedelta(minutes=period["duration"])
 
         if period_start <= current_time < period_end:
@@ -568,7 +573,7 @@ def main():
     application.add_handler(CommandHandler("help", send_help_message))
 
     # the 8:30 time table message - auto send
-    now = india_tz.localize(datetime.now())
+    now = datetime.now(india_tz)
     next_run_time = now.replace(hour=8, minute=30, second=0, microsecond=0)
     if now >= next_run_time:
         next_run_time += timedelta(days=1)
