@@ -9,7 +9,6 @@ from pymongo import MongoClient
 
 load_dotenv()
 
-# MongoDB setup
 mongo_client = MongoClient(os.getenv("MONGODB_URI"))
 db = mongo_client['test-database']
 users_collection = db['test-users']
@@ -278,25 +277,35 @@ async def send_timetable_to_all_users(context: ContextTypes.DEFAULT_TYPE):
 
     for period in timetable[today]:
         if "msg" in period:
-            message = f"{period['msg']}\n"
+            # message = f"{period['msg']}\n"
+            logging.info(f"{period['msg']}")
+            return
+
+    message = f"<b>It’s {today}. Here’s your damn timetable. Don’t be late!</b>\n"
+    message += f"<code>----------------------------</code>\n\n"
+
+    for period in timetable[today]:
+        start_time = datetime.strptime(period["time"], "%H:%M")
+        end_time = start_time + timedelta(minutes=period["duration"])
+
+        formatted_start_time = start_time.strftime("%I:%M %p")
+        formatted_end_time = end_time.strftime("%I:%M %p")
+
+        if period["subject"] == "Break":
+            message += (
+                f"<i>&lt;-- BREAK 😀 : {period['duration']} Minutes --&gt;</i>\n\n"
+            )
         else:
-            message = f"<b>It’s {today}. Here’s your timetable. Don’t be late!</b>\n"
-            message += f"<code>----------------------------</code>\n\n"
-
-            start_time = datetime.strptime(period["time"], "%H:%M")
-            end_time = start_time + timedelta(minutes=period["duration"])
-            formatted_start_time = start_time.strftime("%I:%M %p")
-            formatted_end_time = end_time.strftime("%I:%M %p")
-
             message += (
                 f"• <b>Subject :</b> {period['subject']}\n"
                 f"• <b>Time :</b> {formatted_start_time} to {formatted_end_time}\n"
+                # f"• <b>Duration :</b> {period['duration']} minutes\n"
                 f"• <b>Faculty :</b> {period.get('teacher', 'N/A')}\n"
                 f"• <b>Room :</b> {period.get('room', 'N/A')}\n\n"
             )
 
-            message += f"<code>----------------------------</code>\n"
-            message += "<b>That’s it. Now go, and don’t screw it up!</b>"
+    message += f"<code>----------------------------</code>\n"
+    message += "<b>That’s it. Now go, and don’t screw it up!</b>"
 
     for chat_id in chat_ids:
         await context.bot.send_message(chat_id=chat_id, text=message, parse_mode="HTML")
@@ -481,11 +490,10 @@ def main():
     application.add_handler(CommandHandler("breaktime", send_break_message))
     application.add_handler(CommandHandler("whatsnow", send_current_period))
     application.add_handler(CommandHandler("help", send_help_message))
-    # application.job_queue.run_repeating(send_timetable_to_all_users, interval=60)
-    # application.job_queue.run_repeating(send_timetable_to_all_users, time=time(11, 30))
 
+    # the 8:30 time table message - auto send
     now = datetime.now()
-    next_run_time = now.replace(hour=11, minute=30, second=0, microsecond=0)
+    next_run_time = now.replace(hour=8, minute=30, second=0, microsecond=0)
     if now >= next_run_time:
         next_run_time += timedelta(days=1)
     delay_seconds = (next_run_time - now).total_seconds()
