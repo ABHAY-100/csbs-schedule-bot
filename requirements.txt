@@ -2,3 +2,4 @@ python-telegram-bot
 python-dotenv==1.0.0
 Flask
 pymongo
+python-telegram-bot[job-queue]
