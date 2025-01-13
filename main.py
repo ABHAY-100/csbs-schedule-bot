@@ -6,6 +6,9 @@ from dotenv import load_dotenv
 from telegram import Update
 from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes, JobQueue
 from pymongo import MongoClient
+import pytz
+
+india_tz = pytz.timezone('Asia/Kolkata')
 
 load_dotenv()
 
@@ -272,7 +275,7 @@ async def get_chat_ids():
 
 async def send_timetable_to_all_users(context: ContextTypes.DEFAULT_TYPE):
     chat_ids = await get_chat_ids()
-    today = datetime.now().strftime("%A")
+    today = india_tz.localize(india_tz.localize(datetime.now())).strftime("%A")
     logging.info(f"Sending timetable for {today} to all users")
 
     for period in timetable[today]:
@@ -312,7 +315,7 @@ async def send_timetable_to_all_users(context: ContextTypes.DEFAULT_TYPE):
 
 async def send_timetable(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await get_chat_ids()
-    today = datetime.now().strftime("%A")
+    today = india_tz.localize(datetime.now()).strftime("%A")
     logging.info(f"Sending timetable for {today}")
 
     if today not in timetable:
@@ -356,14 +359,14 @@ async def send_timetable(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(f"No timetable available for {today}.")
 
 async def send_break_message_force(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    today = datetime.now().strftime("%A")
+    today = india_tz.localize(datetime.now()).strftime("%A")
     logging.info(f"Checking break status for {today}")
 
     if today not in timetable:
         await update.message.reply_text(f"No timetable available for {today}.")
         return
 
-    current_time = datetime.now().time()
+    current_time = india_tz.localize(datetime.now()).time()
     ongoing_break = False
     next_break_time = None
 
@@ -422,8 +425,8 @@ async def send_break_message(context: ContextTypes.DEFAULT_TYPE, break_time: str
         await context.bot.send_message(chat_id=chat_id, text=message, parse_mode="HTML")
 
 async def schedule_break_notifications(context: ContextTypes.DEFAULT_TYPE):
-    today = datetime.now().strftime("%A")
-    current_time = datetime.now().time()
+    today = india_tz.localize(datetime.now()).strftime("%A")
+    current_time = india_tz.localize(datetime.now()).time()
 
     if today not in timetable:
         return  # No timetable available for today
@@ -448,8 +451,8 @@ async def schedule_break_notifications(context: ContextTypes.DEFAULT_TYPE):
                     del break_message_sent[(today, period["time"])]
 
 async def schedule_next_period_notifications(context: ContextTypes.DEFAULT_TYPE):
-    today = datetime.now().strftime("%A")
-    current_time = datetime.now()
+    today = india_tz.localize(datetime.now()).strftime("%A")
+    current_time = india_tz.localize(datetime.now())
 
     if today not in timetable:
         return
@@ -477,7 +480,7 @@ async def schedule_next_period_notifications(context: ContextTypes.DEFAULT_TYPE)
             break
 
 async def send_current_period(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    today = datetime.now().strftime("%A")
+    today = india_tz.localize(datetime.now()).strftime("%A")
     logging.info(f"Checking current period for {today}")
 
     if today not in timetable:
@@ -489,7 +492,7 @@ async def send_current_period(update: Update, context: ContextTypes.DEFAULT_TYPE
             await update.message.reply_text(period["msg"])
             return
 
-    current_time = datetime.now()
+    current_time = india_tz.localize(datetime.now())
     cutoff_start_time = datetime.strptime("09:30", "%H:%M").time()
     cutoff_end_time = datetime.strptime("16:30", "%H:%M").time()
 
@@ -565,7 +568,7 @@ def main():
     application.add_handler(CommandHandler("help", send_help_message))
 
     # the 8:30 time table message - auto send
-    now = datetime.now()
+    now = india_tz.localize(datetime.now())
     next_run_time = now.replace(hour=8, minute=30, second=0, microsecond=0)
     if now >= next_run_time:
         next_run_time += timedelta(days=1)
