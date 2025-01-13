@@ -359,7 +359,6 @@ async def send_break_message_force(update: Update, context: ContextTypes.DEFAULT
     today = datetime.now().strftime("%A")
     logging.info(f"Checking break status for {today}")
 
-    # Check if timetable exists for today
     if today not in timetable:
         await update.message.reply_text(f"No timetable available for {today}.")
         return
@@ -368,11 +367,9 @@ async def send_break_message_force(update: Update, context: ContextTypes.DEFAULT
     ongoing_break = False
     next_break_time = None
 
-    # Define cutoff times
     cutoff_start_time = datetime.strptime("09:30", "%H:%M").time()
     cutoff_end_time = datetime.strptime("16:30", "%H:%M").time()
 
-    # Check if class has started or ended
     if current_time < cutoff_start_time:
         await update.message.reply_text("Hold up! Class hasn't started yet! 📚")
         return
@@ -381,13 +378,11 @@ async def send_break_message_force(update: Update, context: ContextTypes.DEFAULT
         await update.message.reply_text("Classes are over, now get lost! See you tomorrow!")
         return
 
-    # Iterate through today's timetable to find breaks
     for period in timetable[today]:
         if "msg" in period:
             await update.message.reply_text(period["msg"])
             return
         
-        # Check for ongoing breaks
         if period["subject"] == "Break":
             break_time = datetime.strptime(period["time"], "%H:%M").time()
             break_end_time = (
@@ -403,13 +398,11 @@ async def send_break_message_force(update: Update, context: ContextTypes.DEFAULT
                 )
                 return
             
-            # If no ongoing break, check for the next break time
             if not ongoing_break and current_time < break_time:
                 next_break_time = break_time
                 break_duration = period["duration"]
                 break
 
-    # If no ongoing breaks, inform about the next scheduled break
     if not ongoing_break:
         if next_break_time:
             await update.message.reply_text(
@@ -453,6 +446,35 @@ async def schedule_break_notifications(context: ContextTypes.DEFAULT_TYPE):
             if current_time >= break_end_time:
                 if (today, period["time"]) in break_message_sent:
                     del break_message_sent[(today, period["time"])]
+
+async def schedule_next_period_notifications(context: ContextTypes.DEFAULT_TYPE):
+    today = datetime.now().strftime("%A")
+    current_time = datetime.now()
+
+    if today not in timetable:
+        return
+
+    for period in timetable[today]:
+        period_start = datetime.strptime(period["time"], "%H:%M").replace(
+            year=current_time.year, month=current_time.month, day=current_time.day
+        )
+        period_end = period_start + timedelta(minutes=period["duration"])
+
+        notification_time = period_start - timedelta(minutes=5)
+
+        if current_time >= notification_time and current_time < period_start:
+            message = (
+                f"<b>Next Period (Starts in 5min):</b>\n"
+                f"<code>---------------</code>\n"
+                f"• <b>Subject :</b> {period['subject']}\n"
+                f"• <b>Time :</b> {period_start.strftime('%I:%M %p')} to {period_end.strftime('%I:%M %p')}\n"
+                f"• <b>Faculty :</b> {period.get('teacher', 'N/A')}\n"
+                f"• <b>Room :</b> {period.get('room', 'N/A')}\n"
+            )
+            chat_ids = await get_chat_ids()
+            for chat_id in chat_ids:
+                await context.bot.send_message(chat_id=chat_id, text=message, parse_mode="HTML")
+            break
 
 async def send_current_period(update: Update, context: ContextTypes.DEFAULT_TYPE):
     today = datetime.now().strftime("%A")
@@ -552,6 +574,9 @@ def main():
 
     # Check for break time every minute
     application.job_queue.run_repeating(schedule_break_notifications, interval=60)
+
+    # Check for next period every minute
+    application.job_queue.run_repeating(schedule_next_period_notifications, interval=60, first=0)
 
     from threading import Thread
 
