@@ -1,7 +1,7 @@
 from flask import Flask
 import logging
 import os
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, time
 from dotenv import load_dotenv
 from telegram import Update
 from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes
@@ -271,6 +271,36 @@ async def get_chat_ids():
         chat_ids.append(user["user_id"])
     return chat_ids
 
+async def send_timetable_to_all_users(context: ContextTypes.DEFAULT_TYPE):
+    chat_ids = await get_chat_ids()
+    today = datetime.now().strftime("%A")
+    logging.info(f"Sending timetable for {today} to all users")
+
+    for period in timetable[today]:
+        if "msg" in period:
+            message = f"{period['msg']}\n"
+        else:
+            message = f"<b>It’s {today}. Here’s your timetable. Don’t be late!</b>\n"
+            message += f"<code>----------------------------</code>\n\n"
+
+            start_time = datetime.strptime(period["time"], "%H:%M")
+            end_time = start_time + timedelta(minutes=period["duration"])
+            formatted_start_time = start_time.strftime("%I:%M %p")
+            formatted_end_time = end_time.strftime("%I:%M %p")
+
+            message += (
+                f"• <b>Subject :</b> {period['subject']}\n"
+                f"• <b>Time :</b> {formatted_start_time} to {formatted_end_time}\n"
+                f"• <b>Faculty :</b> {period.get('teacher', 'N/A')}\n"
+                f"• <b>Room :</b> {period.get('room', 'N/A')}\n\n"
+            )
+
+            message += f"<code>----------------------------</code>\n"
+            message += "<b>That’s it. Now go, and don’t screw it up!</b>"
+
+    for chat_id in chat_ids:
+        await context.bot.send_message(chat_id=chat_id, text=message, parse_mode="HTML")
+
 async def send_timetable(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await get_chat_ids()
     today = datetime.now().strftime("%A")
@@ -451,6 +481,15 @@ def main():
     application.add_handler(CommandHandler("breaktime", send_break_message))
     application.add_handler(CommandHandler("whatsnow", send_current_period))
     application.add_handler(CommandHandler("help", send_help_message))
+    # application.job_queue.run_repeating(send_timetable_to_all_users, interval=60)
+    # application.job_queue.run_repeating(send_timetable_to_all_users, time=time(11, 30))
+
+    now = datetime.now()
+    next_run_time = now.replace(hour=11, minute=30, second=0, microsecond=0)
+    if now >= next_run_time:
+        next_run_time += timedelta(days=1)
+    delay_seconds = (next_run_time - now).total_seconds()
+    application.job_queue.run_once(send_timetable_to_all_users, delay_seconds)
 
     from threading import Thread
 
