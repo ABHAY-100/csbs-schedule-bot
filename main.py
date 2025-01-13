@@ -4,7 +4,7 @@ import os
 from datetime import datetime, timedelta, time
 from dotenv import load_dotenv
 from telegram import Update
-from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes
+from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes, JobQueue
 from pymongo import MongoClient
 
 load_dotenv()
