@@ -584,7 +584,7 @@ def main():
     application.job_queue.run_repeating(schedule_break_notifications, interval=60)
 
     # Check for next period every minute
-    application.job_queue.run_repeating(schedule_next_period_notifications, interval=60, first=0)
+    application.job_queue.run_repeating(schedule_next_period_notifications, interval=300, first=0)
 
     from threading import Thread
 
