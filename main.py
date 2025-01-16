@@ -458,6 +458,10 @@ async def schedule_next_period_notifications(context: ContextTypes.DEFAULT_TYPE)
         return
 
     for period in timetable[today]:
+        if period["subject"] == "Break":
+            return
+        ) # bug 2 solution
+        
         period_start = datetime.strptime(period["time"], "%H:%M").replace(
             year=current_time.year, month=current_time.month, day=current_time.day
         )
