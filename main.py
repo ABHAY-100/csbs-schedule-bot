@@ -426,29 +426,32 @@ async def send_break_message(context: ContextTypes.DEFAULT_TYPE, break_time: str
 
 async def schedule_break_notifications(context: ContextTypes.DEFAULT_TYPE):
     today = datetime.now(india_tz).strftime("%A")
-    current_time = datetime.now(india_tz).time()
+    current_time = datetime.now(india_tz)
 
     if today not in timetable:
         return  # No timetable available for today
 
     for period in timetable[today]:
         if period["subject"] == "Break":
-            break_time = datetime.strptime(period["time"], "%H:%M").time()
-            break_end_time = (
-                datetime.combine(datetime.today(), break_time)
-                + timedelta(minutes=period["duration"])
-            ).time()
+            break_start = datetime.strptime(period["time"], "%H:%M").replace(
+                year=current_time.year, month=current_time.month, day=current_time.day
+            )
+            break_start = india_tz.localize(break_start)
+            break_end = break_start + timedelta(minutes=period["duration"])
 
-            # Check if it's time to send the break message
-            if current_time >= break_time and current_time < break_end_time:
-                if (today, period["time"]) not in break_message_sent:
-                    await send_break_message(context, period["time"], period["duration"])
-                    break_message_sent[(today, period["time"])] = True  # Mark as sent
+            notification_time = break_start - timedelta(minutes=1)
 
-            # Reset after the break ends
-            if current_time >= break_end_time:
-                if (today, period["time"]) in break_message_sent:
-                    del break_message_sent[(today, period["time"])]
+            if current_time >= notification_time and current_time < break_start:
+                message = (
+                    # f"<b>Break Time in 1 minute!</b> 😋\n"
+                    # f"<code>---------------</code>\n"
+                    # f"You have a {period['duration']} minute break starting at {break_start.strftime('%I:%M %p')}."
+                    f"<b>Break Time!</b> 😋\n<code>---------------</code>\nYou have a {period['duration']} minute break."
+                )
+                chat_ids = await get_chat_ids()
+                for chat_id in chat_ids:
+                    await context.bot.send_message(chat_id=chat_id, text=message, parse_mode="HTML")
+                break
 
 async def schedule_next_period_notifications(context: ContextTypes.DEFAULT_TYPE):
     today = datetime.now(india_tz).strftime("%A")
@@ -460,7 +463,6 @@ async def schedule_next_period_notifications(context: ContextTypes.DEFAULT_TYPE)
     for period in timetable[today]:
         if period["subject"] == "Break":
             return
-        ) # bug 2 solution
         
         period_start = datetime.strptime(period["time"], "%H:%M").replace(
             year=current_time.year, month=current_time.month, day=current_time.day
@@ -585,7 +587,7 @@ def main():
     application.job_queue.run_once(send_timetable_to_all_users, delay_seconds)
 
     # Check for break time every minute
-    application.job_queue.run_repeating(schedule_break_notifications, interval=60)
+    application.job_queue.run_repeating(schedule_break_notifications, interval=60, first=0)
 
     # Check for next period every minute
     application.job_queue.run_repeating(schedule_next_period_notifications, interval=300, first=0)
@@ -601,3 +603,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
