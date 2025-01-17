@@ -8,17 +8,16 @@ from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes, JobQu
 from pymongo import MongoClient
 import pytz
 
-india_tz = pytz.timezone('Asia/Kolkata')
+india_tz = pytz.timezone("Asia/Kolkata")
 
 load_dotenv()
 
 mongo_client = MongoClient(os.getenv("MONGODB_URI"))
-db = mongo_client['test-database']
-users_collection = db['test-users']
+db = mongo_client["test-database"]
+users_collection = db["test-users"]
 
 logging.basicConfig(
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", 
-    level=logging.INFO
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO
 )
 
 app = Flask(__name__)
@@ -253,18 +252,21 @@ timetable = {
     ],
 }
 
-@app.route('/health', methods=['GET'])
+
+@app.route("/health", methods=["GET"])
 def health_check():
     return "Server is alive!", 200
+
 
 def add_user_info(user):
     user_data = {
         "user_id": user.id,
         "first_name": user.first_name,
     }
-    
+
     if not users_collection.find_one({"user_id": user.id}):
         users_collection.insert_one(user_data)
+
 
 async def get_chat_ids():
     chat_ids = []
@@ -273,6 +275,7 @@ async def get_chat_ids():
         chat_ids.append(user["user_id"])
     return chat_ids
 
+
 async def send_timetable_to_all_users(context: ContextTypes.DEFAULT_TYPE):
     chat_ids = await get_chat_ids()
     today = datetime.now(india_tz).strftime("%A")
@@ -280,7 +283,6 @@ async def send_timetable_to_all_users(context: ContextTypes.DEFAULT_TYPE):
 
     for period in timetable[today]:
         if "msg" in period:
-            # message = f"{period['msg']}\n"
             logging.info(f"{period['msg']}")
             return
 
@@ -302,7 +304,6 @@ async def send_timetable_to_all_users(context: ContextTypes.DEFAULT_TYPE):
             message += (
                 f"• <b>Subject :</b> {period['subject']}\n"
                 f"• <b>Time :</b> {formatted_start_time} to {formatted_end_time}\n"
-                # f"• <b>Duration :</b> {period['duration']} minutes\n"
                 f"• <b>Faculty :</b> {period.get('teacher', 'N/A')}\n"
                 f"• <b>Room :</b> {period.get('room', 'N/A')}\n\n"
             )
@@ -312,6 +313,7 @@ async def send_timetable_to_all_users(context: ContextTypes.DEFAULT_TYPE):
 
     for chat_id in chat_ids:
         await context.bot.send_message(chat_id=chat_id, text=message, parse_mode="HTML")
+
 
 async def send_timetable(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await get_chat_ids()
@@ -346,7 +348,6 @@ async def send_timetable(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 message += (
                     f"• <b>Subject :</b> {period['subject']}\n"
                     f"• <b>Time :</b> {formatted_start_time} to {formatted_end_time}\n"
-                    # f"• <b>Duration :</b> {period['duration']} minutes\n"
                     f"• <b>Faculty :</b> {period.get('teacher', 'N/A')}\n"
                     f"• <b>Room :</b> {period.get('room', 'N/A')}\n\n"
                 )
@@ -357,6 +358,7 @@ async def send_timetable(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(message, parse_mode="HTML")
     else:
         await update.message.reply_text(f"No timetable available for {today}.")
+
 
 async def send_break_message_force(update: Update, context: ContextTypes.DEFAULT_TYPE):
     today = datetime.now(india_tz).strftime("%A")
@@ -378,14 +380,16 @@ async def send_break_message_force(update: Update, context: ContextTypes.DEFAULT
         return
 
     if current_time >= cutoff_end_time:
-        await update.message.reply_text("Classes are over, now get lost! See you tomorrow!")
+        await update.message.reply_text(
+            "Classes are over, now get lost! See you tomorrow!"
+        )
         return
 
     for period in timetable[today]:
         if "msg" in period:
             await update.message.reply_text(period["msg"])
             return
-        
+
         if period["subject"] == "Break":
             break_time = datetime.strptime(period["time"], "%H:%M").time()
             break_end_time = (
@@ -400,7 +404,7 @@ async def send_break_message_force(update: Update, context: ContextTypes.DEFAULT
                     parse_mode="HTML",
                 )
                 return
-            
+
             if not ongoing_break and current_time < break_time:
                 next_break_time = break_time
                 break_duration = period["duration"]
@@ -408,21 +412,16 @@ async def send_break_message_force(update: Update, context: ContextTypes.DEFAULT
 
     if not ongoing_break:
         if next_break_time:
+            formatted_next_break_time = break_time.strftime("%I:%M %p")
             await update.message.reply_text(
-                f"No breaks currently. Your next break is at {next_break_time.strftime('%H:%M')} for {break_duration} minutes. Stay focused!"
+                f"No breaks currently. Your next break is at {formatted_next_break_time} for {break_duration} minutes. Stay focused!"
             )
         else:
             await update.message.reply_text("No breaks currently. Stay focused!")
 
+
 break_message_sent = {}
 
-async def send_break_message(context: ContextTypes.DEFAULT_TYPE, break_time: str, duration: int):
-    chat_ids = await get_chat_ids()  # Get all user chat IDs
-    message = (
-        f"<b>Break Time!</b> 😋\n<code>---------------</code>\nYou have a {duration} minute break."
-    )
-    for chat_id in chat_ids:
-        await context.bot.send_message(chat_id=chat_id, text=message, parse_mode="HTML")
 
 async def schedule_break_notifications(context: ContextTypes.DEFAULT_TYPE):
     today = datetime.now(india_tz).strftime("%A")
@@ -450,41 +449,68 @@ async def schedule_break_notifications(context: ContextTypes.DEFAULT_TYPE):
                 )
                 chat_ids = await get_chat_ids()
                 for chat_id in chat_ids:
-                    await context.bot.send_message(chat_id=chat_id, text=message, parse_mode="HTML")
+                    await context.bot.send_message(
+                        chat_id=chat_id, text=message, parse_mode="HTML"
+                    )
                 break
+
 
 async def schedule_next_period_notifications(context: ContextTypes.DEFAULT_TYPE):
     today = datetime.now(india_tz).strftime("%A")
     current_time = datetime.now(india_tz)
 
+    logging.info(f"Checking for next period notifications at {current_time}")
+
     if today not in timetable:
+        logging.info(f"No timetable available for {today}")
         return
 
+    next_period = None
     for period in timetable[today]:
         if period["subject"] == "Break":
-            return
-        
+            continue
+
         period_start = datetime.strptime(period["time"], "%H:%M").replace(
             year=current_time.year, month=current_time.month, day=current_time.day
         )
         period_start = india_tz.localize(period_start)
-        period_end = period_start + timedelta(minutes=period["duration"])
 
+        if period_start > current_time:
+            next_period = period
+            break
+
+    if next_period:
         notification_time = period_start - timedelta(minutes=5)
+
+        logging.info(f"Next period: {next_period['subject']} at {period_start}")
+        logging.info(f"Notification time: {notification_time}")
+        logging.info(f"Current time: {current_time}")
 
         if current_time >= notification_time and current_time < period_start:
             message = (
                 f"<b>Next Period (Starts in 5min):</b>\n"
                 f"<code>---------------</code>\n"
-                f"• <b>Subject :</b> {period['subject']}\n"
-                f"• <b>Time :</b> {period_start.strftime('%I:%M %p')} to {period_end.strftime('%I:%M %p')}\n"
-                f"• <b>Faculty :</b> {period.get('teacher', 'N/A')}\n"
-                f"• <b>Room :</b> {period.get('room', 'N/A')}\n"
+                f"• <b>Subject :</b> {next_period['subject']}\n"
+                f"• <b>Time :</b> {period_start.strftime('%I:%M %p')} to {(period_start + timedelta(minutes=next_period['duration'])).strftime('%I:%M %p')}\n"
+                f"• <b>Faculty :</b> {next_period.get('teacher', 'N/A')}\n"
+                f"• <b>Room :</b> {next_period.get('room', 'N/A')}\n"
             )
             chat_ids = await get_chat_ids()
             for chat_id in chat_ids:
-                await context.bot.send_message(chat_id=chat_id, text=message, parse_mode="HTML")
-            break
+                try:
+                    await context.bot.send_message(
+                        chat_id=chat_id, text=message, parse_mode="HTML"
+                    )
+                    logging.info(f"Sent next period notification to chat_id: {chat_id}")
+                except Exception as e:
+                    logging.error(
+                        f"Failed to send message to chat_id {chat_id}: {str(e)}"
+                    )
+        else:
+            logging.info("Not within the notification window for the next period")
+    else:
+        logging.info("No upcoming periods found")
+
 
 async def send_current_period(update: Update, context: ContextTypes.DEFAULT_TYPE):
     today = datetime.now(india_tz).strftime("%A")
@@ -508,14 +534,14 @@ async def send_current_period(update: Update, context: ContextTypes.DEFAULT_TYPE
         return
 
     if current_time.time() >= cutoff_end_time:
-        await update.message.reply_text("Classes are over, now get lost! See you tomorrow!")
+        await update.message.reply_text(
+            "Classes are over, now get lost! See you tomorrow!"
+        )
         return
 
     for period in timetable[today]:
         period_start = datetime.strptime(period["time"], "%H:%M").replace(
-            year=current_time.year, 
-            month=current_time.month, 
-            day=current_time.day
+            year=current_time.year, month=current_time.month, day=current_time.day
         )
 
         period_start = india_tz.localize(period_start)
@@ -535,7 +561,6 @@ async def send_current_period(update: Update, context: ContextTypes.DEFAULT_TYPE
                     f"• <b>Time :</b> {period_start.strftime('%I:%M %p')} to {period_end.strftime('%I:%M %p')}\n"
                 )
                 reminder_message += (
-                    # f"• <b>Duration :</b> {period['duration']} minutes\n"
                     f"• <b>Faculty :</b> {period.get('teacher', 'N/A')}\n"
                     f"• <b>Room :</b> {period.get('room', 'N/A')}\n"
                 )
@@ -544,11 +569,10 @@ async def send_current_period(update: Update, context: ContextTypes.DEFAULT_TYPE
 
     await update.message.reply_text("No period is currently scheduled.")
 
+
 async def send_help_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text(
-        f"Better Ask Abhay",
-        parse_mode="HTML"
-    )
+    await update.message.reply_text(f"Better Ask Abhay", parse_mode="HTML")
+
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.message.from_user
@@ -565,6 +589,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         parse_mode="HTML",
     )
 
+
 def main():
     token = os.getenv("TELEGRAM_TOKEN")
 
@@ -578,7 +603,7 @@ def main():
     application.add_handler(CommandHandler("whatsnow", send_current_period))
     application.add_handler(CommandHandler("help", send_help_message))
 
-    # the 8:30 time table message - auto send
+    # The 8:30 timetable msg
     now = datetime.now(india_tz)
     next_run_time = now.replace(hour=8, minute=30, second=0, microsecond=0)
     if now >= next_run_time:
@@ -587,19 +612,24 @@ def main():
     application.job_queue.run_once(send_timetable_to_all_users, delay_seconds)
 
     # Check for break time every minute
-    application.job_queue.run_repeating(schedule_break_notifications, interval=60, first=0)
+    application.job_queue.run_repeating(
+        schedule_break_notifications, interval=60, first=0
+    )
 
     # Check for next period every minute
-    application.job_queue.run_repeating(schedule_next_period_notifications, interval=300, first=0)
+    application.job_queue.run_repeating(
+        schedule_next_period_notifications, interval=180, first=0
+    )
 
     from threading import Thread
 
     def run_flask():
-        app.run(host='0.0.0.0', port=8080)
+        app.run(host="0.0.0.0", port=8080)
 
     Thread(target=run_flask).start()
-    
+
     application.run_polling()
+
 
 if __name__ == "__main__":
     main()
