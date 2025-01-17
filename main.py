@@ -570,8 +570,12 @@ async def send_current_period(update: Update, context: ContextTypes.DEFAULT_TYPE
     await update.message.reply_text("No period is currently scheduled.")
 
 
-async def send_help_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text(f"Better Ask Abhay", parse_mode="HTML")
+async def send_support_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    support_message = (
+        "If you enjoy using this bot, please consider starring our GitHub repository! 🌟\n\n"
+        "https://github.com/ABHAY-100/zephyr-telegram-bot"
+    )
+    await update.message.reply_text(support_message, parse_mode="HTML")
 
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -584,7 +588,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"/timetable - Your daily doom schedule\n"
         f"/breaktime - Freedom time or nah?\n"
         f"/whatsnow - Where your lazy self should be\n"
-        f"/help - Lost? Just ask me!\n\n"
+        f"/supportus - Like my chaos? Star us on GitHub!\n\n"
         f"Now try a command, if you can handle it. 🤠",
         parse_mode="HTML",
     )
@@ -601,7 +605,7 @@ def main():
     application.add_handler(CommandHandler("timetable", send_timetable))
     application.add_handler(CommandHandler("breaktime", send_break_message_force))
     application.add_handler(CommandHandler("whatsnow", send_current_period))
-    application.add_handler(CommandHandler("help", send_help_message))
+    application.add_handler(CommandHandler("supportus", send_support_message))
 
     # The 8:30 timetable msg
     now = datetime.now(india_tz)
