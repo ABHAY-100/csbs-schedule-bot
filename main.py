@@ -368,6 +368,11 @@ async def send_break_message_force(update: Update, context: ContextTypes.DEFAULT
         await update.message.reply_text(f"No timetable available for {today}.")
         return
 
+    for period in timetable[today]:
+        if "msg" in period:
+            await update.message.reply_text(period["msg"])
+            return
+
     current_time = datetime.now(india_tz).time()
     ongoing_break = False
     next_break_time = None
@@ -386,10 +391,6 @@ async def send_break_message_force(update: Update, context: ContextTypes.DEFAULT
         return
 
     for period in timetable[today]:
-        if "msg" in period:
-            await update.message.reply_text(period["msg"])
-            return
-
         if period["subject"] == "Break":
             break_time = datetime.strptime(period["time"], "%H:%M").time()
             break_end_time = (
