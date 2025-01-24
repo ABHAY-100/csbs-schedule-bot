@@ -21,18 +21,23 @@ Here's what I can do for you:
 ## Setup Guide 🚀
 
 1. Clone this repo
+
 2. Install the requirements:
    ```bash
    pip install -r requirements.txt
    ```
+
 3. Set up your environment variables:
    - Create a `.env` file with:
+
      ```
      TELEGRAM_TOKEN=your_bot_token
      MONGODB_URI=your_mongodb_uri
      ```
+
 4. Customize timetable:
    - Edit `timetable.json` with your schedule
+
 5. Start the bot:
    ```bash
    python app.py
