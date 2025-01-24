@@ -1,0 +1,229 @@
+{
+  "Saturday": [
+    {
+      "msg": "No classes are planned, but there might be something special. Check with your friends to know more!"
+    }
+  ],
+  "Sunday": [
+    {
+      "msg": "No classes are planned, but there might be something special. Check with your friends to know more!"
+    }
+  ],
+  "Monday": [
+    {
+      "subject": "DBMS",
+      "time": "09:30",
+      "room": "301",
+      "teacher": "Chitra C",
+      "duration": 115
+    },
+    {
+      "subject": "Break",
+      "time": "11:25",
+      "duration": 10
+    },
+    {
+      "subject": "COA",
+      "time": "11:35",
+      "room": "301",
+      "teacher": "Amrita MR",
+      "duration": 55
+    },
+    {
+      "subject": "Break",
+      "time": "12:30",
+      "duration": 60
+    },
+    {
+      "subject": "COI",
+      "time": "13:30",
+      "room": "211",
+      "teacher": "Manju K",
+      "duration": 60
+    },
+    {
+      "subject": "HNRS/MNRS",
+      "time": "14:30",
+      "room": "TBD",
+      "duration": 120
+    }
+  ],
+  "Tuesday": [
+    {
+      "subject": "OS",
+      "time": "09:30",
+      "room": "B303",
+      "teacher": "Maria V",
+      "duration": 60
+    },
+    {
+      "subject": "COA",
+      "time": "10:30",
+      "room": "B303",
+      "teacher": "Amrita MR",
+      "duration": 55
+    },
+    {
+      "subject": "Break",
+      "time": "11:25",
+      "duration": 10
+    },
+    {
+      "subject": "OS",
+      "time": "11:35",
+      "room": "B303",
+      "teacher": "Maria V",
+      "duration": 55
+    },
+    {
+      "subject": "Break",
+      "time": "12:30",
+      "duration": 60
+    },
+    {
+      "subject": "DBMS/STAT LAB",
+      "time": "13:30",
+      "room": "LAB 1",
+      "teacher": "CC, STS/GA, ASN",
+      "duration": 180
+    }
+  ],
+  "Wednesday": [
+    {
+      "subject": "MATHS",
+      "time": "09:30",
+      "room": "B303",
+      "teacher": "Manoj KK",
+      "duration": 115
+    },
+    {
+      "subject": "Break",
+      "time": "11:25",
+      "duration": 10
+    },
+    {
+      "subject": "PE",
+      "time": "11:35",
+      "room": "B303",
+      "teacher": "Thasni E",
+      "duration": 55
+    },
+    {
+      "subject": "Break",
+      "time": "12:30",
+      "duration": 60
+    },
+    {
+      "subject": "DBMS",
+      "time": "13:30",
+      "room": "B303",
+      "teacher": "Chitra C",
+      "duration": 60
+    },
+    {
+      "subject": "HNRS/MNRS",
+      "time": "14:30",
+      "room": "TBD",
+      "duration": 120
+    }
+  ],
+  "Thursday": [
+    {
+      "subject": "DBMS",
+      "time": "09:30",
+      "room": "B303",
+      "teacher": "Chitra C",
+      "duration": 60
+    },
+    {
+      "subject": "COA",
+      "time": "10:30",
+      "room": "B303",
+      "teacher": "Amrita MR",
+      "duration": 55
+    },
+    {
+      "subject": "Break",
+      "time": "11:25",
+      "duration": 10
+    },
+    {
+      "subject": "C0A",
+      "time": "11:35",
+      "room": "B303",
+      "teacher": "Amrita MR",
+      "duration": 55
+    },
+    {
+      "subject": "Break",
+      "time": "12:30",
+      "duration": 60
+    },
+    {
+      "subject": "OS",
+      "time": "13:30",
+      "room": "B303",
+      "teacher": "Maria V",
+      "duration": 60
+    },
+    {
+      "subject": "MATHS",
+      "time": "14:30",
+      "room": "B303",
+      "teacher": "Manoj KK",
+      "duration": 55
+    },
+    {
+      "subject": "Break",
+      "time": "15:25",
+      "duration": 10
+    },
+    {
+      "subject": "COI",
+      "time": "15:35",
+      "room": "B303",
+      "teacher": "Manju K",
+      "duration": 55
+    }
+  ],
+  "Friday": [
+    {
+      "subject": "OS",
+      "time": "09:30",
+      "room": "B304",
+      "teacher": "Maria V",
+      "duration": 50
+    },
+    {
+      "subject": "MATHS",
+      "time": "10:20",
+      "room": "B304",
+      "teacher": "Manoj KK",
+      "duration": 50
+    },
+    {
+      "subject": "Break",
+      "time": "11:10",
+      "duration": 10
+    },
+    {
+      "subject": "PE",
+      "time": "11:20",
+      "room": "B304",
+      "teacher": "Thasni E",
+      "duration": 50
+    },
+    {
+      "subject": "Break",
+      "time": "12:10",
+      "duration": 180
+    },
+    {
+      "subject": "DBMS/STAT LAB",
+      "time": "14:00",
+      "room": "LAB 1",
+      "teacher": "CC, STS/GA, ASN",
+      "duration": 180
+    }
+  ]
+}

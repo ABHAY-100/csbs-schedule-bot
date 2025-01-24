@@ -1,264 +1,56 @@
+# Import necessary libraries
 from flask import Flask
 import logging
 import os
+import json
 from datetime import datetime, timedelta, time
 from dotenv import load_dotenv
 from telegram import Update
 from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes, JobQueue
 from pymongo import MongoClient
 import pytz
+import asyncio
+from telegram.error import TimedOut, NetworkError, RetryAfter
 
+# Initialize timezone for India
 india_tz = pytz.timezone("Asia/Kolkata")
 
+# Load environment variables and timetable
 load_dotenv()
 
-mongo_client = MongoClient(os.getenv("MONGODB_URI"))
-db = mongo_client["test-database"]
-users_collection = db["test-users"]
+with open('timetable.json', 'r') as f:
+    timetable = json.load(f)
 
+# Initialize MongoDB connection
+mongo_client = MongoClient(os.getenv("MONGODB_URI"))
+db = mongo_client["telebot_db"]
+users_collection = db["users"]
+
+# Setup logging and Flask app
 logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO
 )
 
 app = Flask(__name__)
 
-timetable = {
-    "Saturday": [
-        {
-            "msg": "No classes on Saturday",
-        }
-    ],
-    "Sunday": [
-        {
-            "msg": "No classes on Sunday",
-        }
-    ],
-    "Monday": [
-        {  # 1st & 2nd Hour
-            "subject": "DBMS",
-            "time": "09:30",
-            "room": "301",
-            "teacher": "Chitra Miss",
-            "duration": 115,
-        },
-        {  # Break
-            "subject": "Break",
-            "time": "11:25",
-            "duration": 10,
-        },
-        {  # 3rd Hour
-            "subject": "COA",
-            "time": "11:35",
-            "room": "301",
-            "teacher": "Amrita Miss",
-            "duration": 55,
-        },
-        {  # Break
-            "subject": "Break",
-            "time": "12:30",
-            "duration": 60,
-        },
-        {  # 4th Hour
-            "subject": "COI",
-            "time": "13:30",
-            "room": "211",
-            "teacher": "Manju K",
-            "duration": 60,
-        },
-        {  # HNRS/MNRS
-            "subject": "HNRS/MNRS",
-            "time": "14:30",
-            "room": "N/A",
-            "duration": 120,
-        },
-    ],
-    "Tuesday": [
-        {  # 1st Hour
-            "subject": "OS",
-            "time": "09:30",
-            "room": "B303",
-            "teacher": "Maria Miss",
-            "duration": 60,
-        },
-        {  # 2nd Hour
-            "subject": "COA",
-            "time": "10:30",
-            "room": "B303",
-            "teacher": "Amrita Miss",
-            "duration": 55,
-        },
-        {  # Break
-            "subject": "Break",
-            "time": "11:25",
-            "duration": 10,
-        },
-        {  # 3rd Hour
-            "subject": "OS",
-            "time": "11:35",
-            "room": "B303",
-            "teacher": "Maria Miss",
-            "duration": 55,
-        },
-        {  # Break
-            "subject": "Break",
-            "time": "12:30",
-            "duration": 60,
-        },
-        {  # LAB
-            "subject": "DBMS/STAT LAB",
-            "time": "13:30",
-            "room": "LAB 1",
-            "teacher": "Areelum Okkay Avide Undakum",
-            "duration": 180,
-        },
-    ],
-    "Wednesday": [
-        {  # 1st & 2nd Hour
-            "subject": "MATHS",
-            "time": "09:30",
-            "room": "B303",
-            "teacher": "MKK",
-            "duration": 115,
-        },
-        {  # Break
-            "subject": "Break",
-            "time": "11:25",
-            "duration": 10,
-        },
-        {  # 3rd Hour
-            "subject": "PE",
-            "time": "11:35",
-            "room": "B303",
-            "teacher": "TI",
-            "duration": 55,
-        },
-        {  # Break
-            "subject": "Break",
-            "time": "12:30",
-            "duration": 60,
-        },
-        {  # 4th Hour
-            "subject": "DBMS",
-            "time": "13:30",
-            "room": "B303",
-            "teacher": "Chitra Miss",
-            "duration": 60,
-        },
-        {  # HNRS/MNRS
-            "subject": "HNRS/MNRS",
-            "time": "14:30",
-            "room": "101",
-            "duration": 120,
-        },
-    ],
-    "Thursday": [
-        {  # 1st Hour
-            "subject": "DBMS",
-            "time": "09:30",
-            "room": "B303",
-            "teacher": "Chitra Miss",
-            "duration": 60,
-        },
-        {  # 2nd Hour
-            "subject": "COA",
-            "time": "10:30",
-            "room": "B303",
-            "teacher": "Amrita Miss",
-            "duration": 55,
-        },
-        {  # Break
-            "subject": "Break",
-            "time": "11:25",
-            "duration": 10,
-        },
-        {  # 3rd Hour
-            "subject": "C0A",
-            "time": "11:35",
-            "room": "B303",
-            "teacher": "Amrita Miss",
-            "duration": 55,
-        },
-        {  # Break
-            "subject": "Break",
-            "time": "12:30",
-            "duration": 60,
-        },
-        {  # 4th Hour
-            "subject": "OS",
-            "time": "13:30",
-            "room": "B303",
-            "teacher": "Maria Miss",
-            "duration": 60,
-        },
-        {  # 5h Hour
-            "subject": "MATHS",
-            "time": "14:30",
-            "room": "B303",
-            "teacher": "MKK",
-            "duration": 55,
-        },
-        {  # Break
-            "subject": "Break",
-            "time": "15:25",
-            "duration": 10,
-        },
-        {  # 6h Hour
-            "subject": "COI",
-            "time": "15:35",
-            "room": "B303",
-            "teacher": "Manju K",
-            "duration": 55,
-        },
-    ],
-    "Friday": [
-        {  # 1st Hour
-            "subject": "OS",
-            "time": "09:30",
-            "room": "B304",
-            "teacher": "Maria Miss",
-            "duration": 50,
-        },
-        {  # 2nd Hour
-            "subject": "MATHS",
-            "time": "10:20",
-            "room": "B304",
-            "teacher": "MKK",
-            "duration": 50,
-        },
-        {  # Break
-            "subject": "Break",
-            "time": "11:10",
-            "duration": 10,
-        },
-        {  # 3rd Hour
-            "subject": "PE",
-            "time": "11:20",
-            "room": "B304",
-            "teacher": "TI",
-            "duration": 50,
-        },
-        {  # Break
-            "subject": "Break",
-            "time": "12:10",
-            "duration": 180,
-        },
-        {  # LAB
-            "subject": "DBMS/STAT LAB",
-            "time": "14:00",
-            "room": "LAB 1",
-            "teacher": "Areelum Okkay Avide Undakum",
-            "duration": 180,
-        },
-    ],
-}
+# some constants
+MAX_RETRIES = 3
+RETRY_DELAY = 300
+DAILY_TIMETABLE_HOUR = 8
+DAILY_TIMETABLE_MINUTE = 30
+CONNECTION_RETRIES = 5
+CONNECTION_RETRY_DELAY = 5
+CONNECTION_TIMEOUT = 30
 
-
+# Health check endpoint
 @app.route("/health", methods=["GET"])
 def health_check():
     return "Server is alive!", 200
 
 
+# Database operations
 def add_user_info(user):
+    """Add or update user information in MongoDB."""
     user_data = {
         "user_id": user.id,
         "first_name": user.first_name,
@@ -269,6 +61,7 @@ def add_user_info(user):
 
 
 async def get_chat_ids():
+    """Retrieve all user chat IDs from database."""
     chat_ids = []
     users = users_collection.find({}, {"user_id": 1})
     for user in users:
@@ -276,7 +69,9 @@ async def get_chat_ids():
     return chat_ids
 
 
+# Timetable distribution functions
 async def send_timetable_to_all_users(context: ContextTypes.DEFAULT_TYPE):
+    """Send daily timetable to all registered users at scheduled time."""
     chat_ids = await get_chat_ids()
     today = datetime.now(india_tz).strftime("%A")
     logging.info(f"Sending timetable for {today} to all users")
@@ -316,6 +111,7 @@ async def send_timetable_to_all_users(context: ContextTypes.DEFAULT_TYPE):
 
 
 async def send_timetable(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Command handler to send timetable on user request."""
     await get_chat_ids()
     today = datetime.now(india_tz).strftime("%A")
     logging.info(f"Sending timetable for {today}")
@@ -360,7 +156,9 @@ async def send_timetable(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(f"No timetable available for {today}.")
 
 
+# Break time management
 async def send_break_message_force(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Command handler to check current/next break status."""
     today = datetime.now(india_tz).strftime("%A")
     logging.info(f"Checking break status for {today}")
 
@@ -425,6 +223,7 @@ break_message_sent = {}
 
 
 async def schedule_break_notifications(context: ContextTypes.DEFAULT_TYPE):
+    """Automated function to send break notifications."""
     today = datetime.now(india_tz).strftime("%A")
     current_time = datetime.now(india_tz)
 
@@ -443,9 +242,6 @@ async def schedule_break_notifications(context: ContextTypes.DEFAULT_TYPE):
 
             if current_time >= notification_time and current_time < break_start:
                 message = (
-                    # f"<b>Break Time in 1 minute!</b> 😋\n"
-                    # f"<code>---------------</code>\n"
-                    # f"You have a {period['duration']} minute break starting at {break_start.strftime('%I:%M %p')}."
                     f"<b>Break Time!</b> 😋\n<code>---------------</code>\nYou have a {period['duration']} minute break."
                 )
                 chat_ids = await get_chat_ids()
@@ -456,7 +252,9 @@ async def schedule_break_notifications(context: ContextTypes.DEFAULT_TYPE):
                 break
 
 
+# Period management and notifications
 async def schedule_next_period_notifications(context: ContextTypes.DEFAULT_TYPE):
+    """Send notifications 5 minutes before next period."""
     today = datetime.now(india_tz).strftime("%A")
     current_time = datetime.now(india_tz)
 
@@ -514,6 +312,7 @@ async def schedule_next_period_notifications(context: ContextTypes.DEFAULT_TYPE)
 
 
 async def send_current_period(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Command handler to show current ongoing period."""
     today = datetime.now(india_tz).strftime("%A")
     logging.info(f"Checking current period for {today}")
 
@@ -571,7 +370,9 @@ async def send_current_period(update: Update, context: ContextTypes.DEFAULT_TYPE
     await update.message.reply_text("No period is currently scheduled.")
 
 
+# User interaction commands
 async def send_support_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Send GitHub repository link and support message."""
     support_message = (
         "If you enjoy using this bot, please consider starring our GitHub repository! 🌟\n\n"
         "https://github.com/ABHAY-100/zephyr-telegram-bot"
@@ -580,6 +381,7 @@ async def send_support_message(update: Update, context: ContextTypes.DEFAULT_TYP
 
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Initialize bot for new users and show available commands."""
     user = update.message.from_user
     add_user_info(user)
 
@@ -594,46 +396,142 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         parse_mode="HTML",
     )
 
+# Add new utility function for scheduling
+async def schedule_with_retry(func, context: ContextTypes.DEFAULT_TYPE, retry_count=0):
+    """Utility function to retry failed scheduled tasks."""
+    try:
+        await func(context)
+        logging.info(f"Successfully executed {func.__name__}")
+    except Exception as e:
+        logging.error(f"Error in {func.__name__}: {str(e)}")
+        if retry_count < MAX_RETRIES:
+            logging.info(f"Retrying {func.__name__} in {RETRY_DELAY} seconds...")
+            await asyncio.sleep(RETRY_DELAY)
+            await schedule_with_retry(func, context, retry_count + 1)
+        else:
+            logging.error(f"Max retries reached for {func.__name__}")
 
+# Add retry decorator for network operations
+def handle_telegram_errors(func):
+    async def wrapper(*args, **kwargs):
+        for attempt in range(CONNECTION_RETRIES):
+            try:
+                return await func(*args, **kwargs)
+            except (TimedOut, NetworkError) as e:
+                if attempt == CONNECTION_RETRIES - 1:
+                    logging.error(f"Max retries reached for {func.__name__}: {str(e)}")
+                    raise
+                logging.warning(f"Connection error in {func.__name__}, retrying... ({attempt + 1}/{CONNECTION_RETRIES})")
+                await asyncio.sleep(CONNECTION_RETRY_DELAY)
+            except RetryAfter as e:
+                logging.warning(f"Rate limited, waiting {e.retry_after} seconds")
+                await asyncio.sleep(e.retry_after)
+                return await func(*args, **kwargs)
+    return wrapper
+
+# Main application setup
 def main():
+    """Initialize and configure the bot with all handlers and scheduled jobs."""
     token = os.getenv("TELEGRAM_TOKEN")
 
     if not token:
         raise ValueError("No TELEGRAM_TOKEN found in environment variables")
 
-    application = ApplicationBuilder().token(token).build()
-    application.add_handler(CommandHandler("start", start))
-    application.add_handler(CommandHandler("timetable", send_timetable))
-    application.add_handler(CommandHandler("breaktime", send_break_message_force))
-    application.add_handler(CommandHandler("whatsnow", send_current_period))
-    application.add_handler(CommandHandler("supportus", send_support_message))
+    # Configure application with proper timeout settings
+    application = (
+        ApplicationBuilder()
+        .token(token)
+        .connect_timeout(CONNECTION_TIMEOUT)
+        .read_timeout(CONNECTION_TIMEOUT)
+        .write_timeout(CONNECTION_TIMEOUT)
+        .pool_timeout(CONNECTION_TIMEOUT)
+        .build()
+    )
 
-    # The 8:30 timetable msg
+    # Add error handler for the application
+    async def error_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+        logging.error(f"Exception while handling an update: {context.error}")
+        if isinstance(context.error, (TimedOut, NetworkError)):
+            logging.warning("Network error occurred, will retry on next update")
+        elif isinstance(context.error, RetryAfter):
+            logging.warning(f"Rate limited, waiting {context.error.retry_after} seconds")
+            await asyncio.sleep(context.error.retry_after)
+
+    application.add_error_handler(error_handler)
+
+    # Add command handlers with retry decorator
+    application.add_handler(CommandHandler("start", handle_telegram_errors(start)))
+    application.add_handler(CommandHandler("timetable", handle_telegram_errors(send_timetable)))
+    application.add_handler(CommandHandler("breaktime", handle_telegram_errors(send_break_message_force)))
+    application.add_handler(CommandHandler("whatsnow", handle_telegram_errors(send_current_period)))
+    application.add_handler(CommandHandler("supportus", handle_telegram_errors(send_support_message)))
+
+    # Schedule daily timetable message with better timing control
     now = datetime.now(india_tz)
-    next_run_time = now.replace(hour=8, minute=30, second=0, microsecond=0)
+    next_run_time = now.replace(
+        hour=DAILY_TIMETABLE_HOUR,
+        minute=DAILY_TIMETABLE_MINUTE,
+        second=0,
+        microsecond=0
+    )
+    
     if now >= next_run_time:
         next_run_time += timedelta(days=1)
+    
     delay_seconds = (next_run_time - now).total_seconds()
-    application.job_queue.run_once(send_timetable_to_all_users, delay_seconds)
-
-    # Check for break time every minute
-    application.job_queue.run_repeating(
-        schedule_break_notifications, interval=60, first=0
+    
+    # Schedule daily timetable with retry mechanism
+    application.job_queue.run_once(
+        lambda ctx: schedule_with_retry(send_timetable_to_all_users, ctx),
+        delay_seconds,
+        name="daily_timetable"
     )
 
-    # Check for next period every minute
+    # Schedule break notifications with better interval control
     application.job_queue.run_repeating(
-        schedule_next_period_notifications, interval=180, first=0
+        lambda ctx: schedule_with_retry(schedule_break_notifications, ctx),
+        interval=60,
+        first=5,  # Start after 5 seconds
+        name="break_notifications"
     )
 
+    # Schedule next period notifications with optimized interval
+    application.job_queue.run_repeating(
+        lambda ctx: schedule_with_retry(schedule_next_period_notifications, ctx),
+        interval=180,
+        first=10,  # Start after 10 seconds to prevent overlap
+        name="period_notifications"
+    )
+
+    # Add job status monitoring - Fixed version
+    async def monitor_jobs(context: ContextTypes.DEFAULT_TYPE):
+        """Monitor scheduled jobs and log their status."""
+        jobs = context.job_queue.jobs()
+        for job in jobs:
+            logging.info(f"Job {job.name}: Next run at {job.next_t}")
+
+    application.job_queue.run_repeating(
+        monitor_jobs,
+        interval=300,  # Every 5 minutes
+        first=15,  # Start after 15 seconds
+        name="job_monitor"
+    )
+
+    # Replace gunicorn with waitress for Windows compatibility
     from threading import Thread
+    from waitress import serve
 
     def run_flask():
-        app.run(host="0.0.0.0", port=8080)
+        serve(app, host='0.0.0.0', port=8080)
 
     Thread(target=run_flask).start()
 
-    application.run_polling()
+    # Start the bot with error handling
+    try:
+        application.run_polling(allowed_updates=Update.ALL_TYPES, drop_pending_updates=True)
+    except Exception as e:
+        logging.error(f"Fatal error: {str(e)}")
+        raise
 
 
 if __name__ == "__main__":
