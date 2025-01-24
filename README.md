@@ -47,4 +47,4 @@ Here's what I can do for you:
 Feel free to reach out if you need help adapting this for your college schedule!
 
 ## License
-MIT License - Feel free to modify for your college needs! 😄
+[MIT License](LICENSE) - Feel free to modify for your college needs! 😄
