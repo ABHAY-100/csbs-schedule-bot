@@ -2,7 +2,7 @@
 Hey there! 👋 This is Zephyr, a Telegram bot created to help me track my college class schedules.
 
 ## Features ✨
-Hey! Try me out here 👉 [Zephyr Bot](https://t.me/zephyrcsbsbot)
+Hey! Try me out here 👉 [t.me/zephyrcsbsbot](https://t.me/zephyrcsbsbot)
 
 Here's what I can do for you:
 - Get an organized view of your day's classes
