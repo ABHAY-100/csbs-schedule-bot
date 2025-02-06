@@ -3,7 +3,7 @@ from flask import Flask
 import logging
 import os
 import json
-from datetime import datetime, timedelta, time
+from datetime import datetime, timedelta, time as datetime_time
 from dotenv import load_dotenv
 from telegram import Update
 from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes, JobQueue
@@ -37,7 +37,7 @@ app = Flask(__name__)
 MAX_RETRIES = 3
 RETRY_DELAY = 300
 DAILY_TIMETABLE_HOUR = 8
-DAILY_TIMETABLE_MINUTE = 31
+DAILY_TIMETABLE_MINUTE = 30
 CONNECTION_RETRIES = 5
 CONNECTION_RETRY_DELAY = 5
 CONNECTION_TIMEOUT = 30
@@ -70,21 +70,24 @@ async def get_chat_ids():
 
 
 # Timetable distribution functions
-async def send_timetable_to_all_users(context: ContextTypes.DEFAULT_TYPE):
-    """Send daily timetable to all registered users at scheduled time."""
-    chat_ids = await get_chat_ids()
-    today = datetime.now(india_tz).strftime("%A")
-    logging.info(f"Sending timetable for {today} to all users")
+async def generate_and_send_timetable(context: ContextTypes.DEFAULT_TYPE, day: str, chat_id: int = None):
+    """Generate and send timetable for a specific day."""
+    logging.info(f"Generating timetable for {day}")
 
-    for period in timetable[today]:
-        if "msg" in period:
-            logging.info(f"{period['msg']}")
-            return
+    if day not in timetable:
+        message = f"No timetable available for {day}."
+        if chat_id:
+            await context.bot.send_message(chat_id=chat_id, text=message)
+        return
 
-    message = f"<b>It’s {today}. Here’s your damn timetable. Don’t be late!</b>\n"
+    message = f"<b>Timetable for {day}:</b>\n"
     message += f"<code>----------------------------</code>\n\n"
 
-    for period in timetable[today]:
+    for period in timetable[day]:
+        if "msg" in period:
+            message += f"{period['msg']}\n\n"
+            continue
+
         start_time = datetime.strptime(period["time"], "%H:%M")
         end_time = start_time + timedelta(minutes=period["duration"])
 
@@ -104,56 +107,36 @@ async def send_timetable_to_all_users(context: ContextTypes.DEFAULT_TYPE):
             )
 
     message += f"<code>----------------------------</code>\n"
-    message += "<b>That’s it. Now go, and don’t screw it up!</b>"
+    message += "<b>That's it. Now go, and don't screw it up!</b>"
 
-    for chat_id in chat_ids:
+    if chat_id:
         await context.bot.send_message(chat_id=chat_id, text=message, parse_mode="HTML")
+    else:
+        chat_ids = await get_chat_ids()
+        for id in chat_ids:
+            await context.bot.send_message(chat_id=id, text=message, parse_mode="HTML")
+
+
+async def send_timetable_to_all_users(context: ContextTypes.DEFAULT_TYPE):
+    """Send daily timetable to all registered users at scheduled time."""
+    logging.info(f"Sending daily timetable at {datetime.now(india_tz)}")
+    today = datetime.now(india_tz).strftime("%A")
+    await generate_and_send_timetable(context, today)
 
 
 async def send_timetable(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Command handler to send timetable on user request."""
-    await get_chat_ids()
-    today = datetime.now(india_tz).strftime("%A")
-    logging.info(f"Sending timetable for {today}")
-
-    if today not in timetable:
-        await update.message.reply_text(f"No timetable available for {today}.")
-        return
-
-    if today in timetable:
-        for period in timetable[today]:
-            if "msg" in period:
-                await update.message.reply_text(period["msg"])
-                return
-
-        message = f"<b>It’s {today}. Here’s your damn timetable. Don’t be late!</b>\n"
-        message += f"<code>----------------------------</code>\n\n"
-
-        for period in timetable[today]:
-            start_time = datetime.strptime(period["time"], "%H:%M")
-            end_time = start_time + timedelta(minutes=period["duration"])
-
-            formatted_start_time = start_time.strftime("%I:%M %p")
-            formatted_end_time = end_time.strftime("%I:%M %p")
-
-            if period["subject"] == "Break":
-                message += (
-                    f"<i>&lt;-- BREAK 😀 : {period['duration']} Minutes --&gt;</i>\n\n"
-                )
-            else:
-                message += (
-                    f"• <b>Subject :</b> {period['subject']}\n"
-                    f"• <b>Time :</b> {formatted_start_time} to {formatted_end_time}\n"
-                    f"• <b>Faculty :</b> {period.get('teacher', 'N/A')}\n"
-                    f"• <b>Room :</b> {period.get('room', 'N/A')}\n\n"
-                )
-
-        message += f"<code>----------------------------</code>\n"
-        message += "<b>That’s it. Now go, and don’t screw it up!</b>"
-
-        await update.message.reply_text(message, parse_mode="HTML")
+    user_message = update.message.text.split()
+    if len(user_message) > 1:
+        day = user_message[1].capitalize()
+        valid_days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
+        if day in valid_days:
+            await generate_and_send_timetable(context, day, update.effective_chat.id)
+        else:
+            await update.message.reply_text("Please provide a valid day of the week.")
     else:
-        await update.message.reply_text(f"No timetable available for {today}.")
+        today = datetime.now(india_tz).strftime("%A")
+        await generate_and_send_timetable(context, today, update.effective_chat.id)
 
 
 # Break time management
@@ -466,24 +449,11 @@ def main():
     application.add_handler(CommandHandler("whatsnow", handle_telegram_errors(send_current_period)))
     application.add_handler(CommandHandler("supportus", handle_telegram_errors(send_support_message)))
 
-    # Schedule daily timetable message with better timing control
-    now = datetime.now(india_tz)
-    next_run_time = now.replace(
-        hour=DAILY_TIMETABLE_HOUR,
-        minute=DAILY_TIMETABLE_MINUTE,
-        second=0,
-        microsecond=0
-    )
-    
-    if now >= next_run_time:
-        next_run_time += timedelta(days=1)
-    
-    delay_seconds = (next_run_time - now).total_seconds()
-    
-    # Schedule daily timetable with retry mechanism
-    application.job_queue.run_once(
+    # Schedule daily timetable message
+    application.job_queue.run_daily(
         lambda ctx: schedule_with_retry(send_timetable_to_all_users, ctx),
-        delay_seconds,
+        time=datetime_time(DAILY_TIMETABLE_HOUR, DAILY_TIMETABLE_MINUTE, tzinfo=india_tz),
+        days=(0, 1, 2, 3, 4, 5, 6),
         name="daily_timetable"
     )
 
